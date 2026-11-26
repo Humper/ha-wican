@@ -1,0 +1,46 @@
+# The house's build of this fork, written into each build commit by the forks job of Humper/homelab
+# (forks/README.md there): each push of the branch runs the fork's own tests, on the Python the house runs and the
+# newest Home Assistant pytest-homeassistant-custom-component has a release for, at most the one the house runs; once
+# they pass, the build is published as the house's release, which the house installs. A test that fails is said by
+# its name and its error, which the forks job reads and tells firstmate of. Each value the job writes in is a quoted
+# string of its own, which no text of it can break, and reaches the steps' shells only as a variable.
+name: House build
+
+on:
+  push:
+    branches: ["house"]
+
+env:
+  PYTHON: "3.14"
+  HOMEASSISTANT: "2026.11.3"
+  RELEASE: "v2.0.0-beta2-house.2"
+  NOTES: "jay-oswald/ha-wican v2.0.0-beta2 with jay-oswald/ha-wican#116 and #117 merged in, version 3.0.0+house.2: built by Humper/homelab's forks job and published once the fork's tests passed."
+
+permissions:
+  contents: write
+
+concurrency:
+  group: house-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install the tests' requirements
+        run: |
+          uv venv -p "$PYTHON"
+          uv pip install -r requirements_test.txt "homeassistant<=$HOMEASSISTANT"
+      - name: Run the tests
+        run: |
+          .venv/bin/python -m pytest -p no:cacheprovider -rfE > pytest.out 2>&1 && status=0 || status=$?
+          cat pytest.out
+          grep '^FAILED \|^ERROR ' pytest.out | head -20 | sed 's/^/::error title=pytest::/' || true
+          exit $status
+      - name: Publish the house's release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE" --target "$GITHUB_SHA" --prerelease --title "$RELEASE" --notes "$NOTES"

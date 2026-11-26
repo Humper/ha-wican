@@ -20,7 +20,7 @@
   "issue_tracker": "https://github.com/meatpiHQ/ha-wican/issues",
   "quality_scale": "platinum",
   "requirements": [],
-  "version": "3.0.0",
+  "version": "3.0.0+house.2",
   "zeroconf": [
     {
       "type": "_meatpi._tcp.local."
